@@ -11,6 +11,7 @@ from SOAPpy import SOAPProxy
 import sys
 import requests
 import json
+from bs4 import BeautifulSoup
 """ ************* function: NAME ******************
     * Description:
 """
@@ -31,18 +32,6 @@ class MyServiceNow:
 		# self.__login()
 		#self.loginjson()
 
-	def __login(self):
-		#self.conn = Connection.Auth(username='javier.messeri@fruitionpartners.eu', password='cGljaHVycmluYQ==', instance='hi', api='JSONv2')
-		#self.conn = Connection.Auth(username='javier.messeri@fruitionpartners.eu', password=base64.b64decode('cGljaHVycmluYQ=='), instance='hi', api='JSONv2')
-		proxy = 'https://%s:%s@%s.service-now.com/incident.do?SOAP' % (self.user, self.passwd, self.instance)
-        	namespace = 'http://www.service-now.com/'
-        	server = SOAPProxy(proxy, namespace)
-		server.config.debug = 1
-
-		#response = server.get(sys_id='9c573169c611228700193229fff72400')
-		#for each in response:
-		#	print each
-
 	def queryInstance(self, request_url, headers):
 		""" Description
 		Args: 
@@ -58,9 +47,13 @@ class MyServiceNow:
 			print "Record not found"
 			exit(1)
 		if response.status_code == 200:
-			return response
+			# Detect HTML code. In that case, instance returned a message such "Instance sleeping"
+			if bool(BeautifulSoup(response.text,"html.parser").find()):
+				print 'No json response(HTML instead).Is instance aslept?'
+				exit(2)
+			else:
+				 return response
 		print 'Status:', response.status_code, 'Headers:', response.headers, 'Error Response:',response.json()
-		print 'Is instance aslept?'
 		exit(2)
 
 	def getRecord(self,table,sysid,query=''):
