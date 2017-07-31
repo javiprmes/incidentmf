@@ -79,7 +79,7 @@ class MyServiceNow:
  		# Do the HTTP request
 		response = self.queryInstance(request_url,headers)
  		# response = requests.get(request_url, auth=(self.user, self.passwd), headers=headers)
- 		print response.status_code
+ 		# print response.status_code
  		# Check for HTTP codes other than 200
  		#if response.status_code != 200: 
 			#print('Status:', response.status_code, 'Headers:', response.headers, 'Error Response:',response.json())
@@ -93,6 +93,8 @@ class MyServiceNow:
  		#print('Cookies', response.cookies)
 		data = json.loads(response.text)
 		return data
+		# Returns json response
+		#return response.text
 		#except ValueError:
 		#	print "Is instance aslept?"
 			
