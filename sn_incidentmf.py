@@ -1,0 +1,186 @@
+#!/usr/bin/python
+import config
+import myservicenow
+import util
+import sys
+import json
+import untangle
+import cgi
+import base64
+import getpass
+import xml.etree.ElementTree as ET
+from lxml import etree
+#from pprint import pprint
+
+def ask_user_and_password():
+	# Ask user for user and password from command line
+	user = raw_input('user:')
+	passwd = base64.b64encode(getpass.getpass('password:'));
+	return user,passwd
+
+def get_value_from_xml(data,field):
+	"""
+		Data XML Format:
+		<?xml version="1.0" encoding="UTF-8"?><response><result>{<$field><display_value>$fielddisplayvalue</display_value><value>$fieldvalue</value></$field>}*</result></response>
+	"""
+	isXml = 'false'
+	dat = ''
+	final_data = ''
+	#print data
+	try: # Check if file is json or XML
+                dat = json.loads(data)['result']
+		final_data = dat[field[0]][field[1]]
+        except ValueError, e: # If exception returned, it's XML 
+		dat = ET.fromstring(data)
+		# Search tree result
+		result = dat.find('result')
+		#print field[0],"/",field[1]
+		data_xml = result.find(field[0]+"/"+field[1])
+		final_data = data_xml.text
+		#final_data = ET.tostring(data_xml,method='xml')
+		#final_data = ET.tostring(data_xml.find(field[1]))
+		#final_data = ET.tostring(data_xml,method='xml')
+		isXml = 'true'
+	#print final_data
+	return final_data
+#TODO: Remove print_data function
+def print_data(data,field):
+	"""
+		Data XML Format:
+		<?xml version="1.0" encoding="UTF-8"?><response><result>{<$field><display_value>$fielddisplayvalue</display_value><value>$fieldvalue</value></$field>}*</result></response>
+	"""
+	isXml = 'false'
+	dat = ''
+	final_data = ''
+	#print data
+	try: # Check if file is json or XML
+                #dat = json.loads(data)
+                dat = json.loads(data)['result']
+		#print dat['result'][field[0]][field[1]]
+		# Convert to Dict
+		#print dat[field[0]][field[1]]
+		final_data = dat[field[0]][field[1]]
+        except ValueError, e: # If exception returned, it's XML 
+                #data = untangle.parse(data)
+		# Read data from string
+		dat = ET.fromstring(data)
+		# Search tree result
+		result = dat.find('result')
+		# Search subtree field[0]/field[1]
+		#all_fields = '/'.join(field)
+		#print all_fields
+		#final_data = result.find(all_fields).text
+		#final_data = result.find(all_fields)
+		data_xml = result.find(field[0])
+		#print data_xml
+		#final_data = ET.dump(data_xml)
+		final_data = ET.tostring(data_xml,method='xml')
+		#final_data = dat.find(all_fields)
+		#print final_data.text
+		#print result
+		isXml = 'true'
+	#print '<'+field[0]+'>'+final_data+'</'+field[0]+'>'
+	#print final_data
+	#if isXml == 'false':
+	#	print dat['result']
+	#else:
+		#print dat.response.result[field[0]]
+	#	print "ES XML"
+		#print dat[0][1].text
+		#for child in dat.iter('parent'):
+		#	print child.tag,child.attrib
+	#print "is xml?"+isXml+";"+final_data
+	return final_data
+
+def treat_response(response):
+	# Array with parameters
+	# Format: [[{parameter,field}]+]
+	parameters_fields = [['number','display_value'],['company','display_value'],['short_description','display_value'],['caller_id','display_value'],['opened_by','display_value']]
+
+	#print response['result']['number']['display_value']
+	#complete_response = ET.element('response')
+	# complete_response = '<?xml version="1.0" encoding="UTF-8"?>\n<response>'
+	#complete_response = ET.element('response')[0]
+	complete_response = etree.Element('response')
+        #
+	for parameter in parameters_fields:
+		#print "item0:"+item[0]
+		#node = etree.SubElement(complete_response,get_value_from_xml(response,[item[0],item[1]]))
+		node = etree.SubElement(complete_response,str(parameter[0]))
+		for field in parameter[1:]:
+			etree.SubElement(node,str(field)).text = str(get_value_from_xml(response,[parameter[0],field]))
+		
+		#print "NODE:"+complete_response
+	#for item in items:
+		#complete_response+=print_data(response,[item[0],item[1]])
+	#	complete_response.append(print_data(response,[item[0],item[1]]))
+	#for child in response:
+	#	print child
+	#complete_response+='</response>'
+	#response_encoding = ET.tostring(complete_response, 'utf-8')
+	return etree.tostring(complete_response, encoding='UTF-8',xml_declaration=True)
+	#return complete_response
+
+def web(form):
+	# form = cgi.FieldStorage()
+        #varleida = form.getvalue('test')
+        url = form.getvalue('url')
+        user = form.getvalue('user')
+        passwd = form.getvalue('pass')
+	#url = "https://dev16165.service-now.com/nav_to.do?uri=incident.do?sys_id=d71f7935c0a8016700802b64c67c11c6"
+	#user = "javier.messeri@fruitionpartners.eu"
+	#passwd = base64.b64encode("6QjKrKznQu9X!")
+	return url,user,passwd
+
+def main():
+	# arguments: --url "URL"
+	# Fix issue codeEncodeError: 'ascii' codec can't encode character
+	# ==>
+	reload(sys)
+	sys.setdefaultencoding('utf-8')
+	# <==
+	return_xml = 'true'
+	print "Content-type: text/html\n\n"
+	#print "Content-type: text/plain\n\n"
+	#print "<html> \n"
+	#print "<body> \n"
+	#print "Content-type: text/xml\n\n"
+	#print "Content-type: application/xhtml+xml\n\n"
+	# Read arguments from URL
+	form = cgi.FieldStorage()
+	# If only one parameter, call was made using a URL ['/usr/local/cgi-bin/...','','']
+	if len(sys.argv) == 1:
+	#varleida = form.getvalue('test')
+		url,user,passwd = web(form)
+	else: # Check command line arguments
+		valid_arguments='hu:' # Help; u + argument(URL)
+		# Ask user for user and password from command line
+		# user,passwd = ask_user_and_password()
+		#user = "javier.messeri@fruitionpartners.eu"
+		#passwd = base64.b64encode("6QjKrKznQu9X!")
+		user = "admin"
+		passwd = base64.b64encode("Pichurrin31$")
+		# Call util to check parameter
+		url=util.Util.read_arguments(valid_arguments,sys.argv)
+	my_util = util.Util()
+	# Treat URL format
+	instance_name,sys_id = my_util.treat_url(url)
+	globalconfig=config.Config()
+	#globalconfig.debugMsg(user+"--"+passwd)
+	#myServiceN=myservicenow.MyServiceNow("dev12876","admin","UGljaHVycmluMzEk")
+	myServiceN=myservicenow.MyServiceNow(instance_name,user,passwd,return_xml)
+	#myServiceN=myservicenow.MyServiceNow(instance_name,"admin","cGljaHVycmluYQ==")
+	#myServiceN=myservicenow.MyServiceNow("dev23002","admin","ZFU1S253eyE9P3ot")
+	data=myServiceN.getRecord('incident',sys_id,'sysparm_display_value=all')
+	#data=myServiceN.getRecord('incident',sys_id)
+	#pprint(data)
+	#print "Output..."
+	#print data
+	print '"'+treat_response(data)+'"'
+	#print "</html> \n"
+	#print "</body> \n"
+	exit(0)
+
+if (__name__== '__main__'):
+	main()
+

@@ -1,0 +1,5 @@
+[Global]
+Debug = 1
+
+[Instance]
+Incident = "https://hi.service-now.com/incident_list.do?sysparm_query=assigned_to%3Daeace1f36fd8790084ad409e9f3ee4a7%5Estate!%3D3"

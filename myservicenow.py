@@ -7,11 +7,11 @@
 #from servicenow import ServiceNow
 #from servicenow import Connection
 import base64
-from SOAPpy import SOAPProxy
+#from SOAPpy import SOAPProxy
 import sys
 import requests
 import json
-from bs4 import BeautifulSoup
+#from bs4 import BeautifulSoup
 """ ************* function: NAME ******************
     * Description:
 """
@@ -24,36 +24,59 @@ from bs4 import BeautifulSoup
 """
 class MyServiceNow:
 
-	def __init__(self,instance,user,passwd):
+	def __init__(self,instance,user,passwd,xml='false'):
 		self.instance = instance
 		self.user = user
 		self.passwd = passwd
 		self.url = 'https://'+instance+'.service-now.com/'
 		# self.__login()
 		#self.loginjson()
+		if xml == 'true':
+			self.setResponseFormatXML()
+		else:
+			self.setResponseFormatJson()	
+	
+	def setResponseFormatJson(self):
+		""" Description
+                	Args: 
 
-	def queryInstance(self, request_url, headers):
+                	Returns: 
+		"""
+		self.headers = {"Content-Type":"application/json","Accept":"application/json"}
+
+	def setResponseFormatXML(self):
+		""" Description
+			Args: 
+		
+			Returns: 
+		"""
+		self.headers = {"Content-Type":"application/json","Accept":"application/xml"}
+			
+	def queryInstance(self, request_url):
 		""" Description
 		Args: 
 
 		Returns: 
 		"""
-		response = requests.get(request_url, auth=(self.user, base64.b64decode(self.passwd)), headers=headers)
+		response = requests.get(request_url, auth=(self.user, base64.b64decode(self.passwd)), headers=self.headers)
 		if response.status_code == 401:
 			print "User/password incorrect?"
 			exit(1)
-		
 		if response.status_code == 404:
 			print "Record not found"
 			exit(1)
 		if response.status_code == 200:
 			# Detect HTML code. In that case, instance returned a message such "Instance sleeping"
-			if bool(BeautifulSoup(response.text,"html.parser").find()):
+			#if bool(BeautifulSoup(response.text,"html.parser").find()):
+			#	print 'No json response(HTML instead).Is instance aslept?'
+				#print response.text	
+			#	exit(2)
+			#else:
+			if (response.text.find("I got bored and fell asleep")!=-1):
 				print 'No json response(HTML instead).Is instance aslept?'
 				exit(2)
-			else:
-				 return response
-		print 'Status:', response.status_code, 'Headers:', response.headers, 'Error Response:',response.json()
+			return response
+		#print 'Status:', response.status_code, 'Headers:', response.headers, 'Error Response:',response.json()
 		exit(2)
 
 	def getRecord(self,table,sysid,query=''):
@@ -70,14 +93,15 @@ class MyServiceNow:
     		"""
 		# Set the request parameters
  		#request_url = self.url+'/api/now/table/'+table+'/'+sysid
- 		request_url = self.__buildrequest(table,sysid,query)
+ 		# Create REST URL 
+		request_url = self.__buildrequest(table,sysid,query)
  		# request = self.url+'/'+table+'.do?JSONv2&sysparm_action=get&sysparm_sys_id='+sysid
 
 		# Set proper headers
-		headers = {"Content-Type":"application/json","Accept":"application/json"}
+		# headers = {"Content-Type":"application/json","Accept":"application/json"}
  
  		# Do the HTTP request
-		response = self.queryInstance(request_url,headers)
+		response = self.queryInstance(request_url)
  		# response = requests.get(request_url, auth=(self.user, self.passwd), headers=headers)
  		# print response.status_code
  		# Check for HTTP codes other than 200
@@ -91,10 +115,11 @@ class MyServiceNow:
 		# try:
  		#print 'Status:',response.status_code,'Headers:',response.headers,'Response:',response.json()
  		#print('Cookies', response.cookies)
-		data = json.loads(response.text)
-		return data
+		# data = json.loads(response.text)
+		#return data
 		# Returns json response
-		#return response.text
+		self.answer = response.text
+		return self.answer
 		#except ValueError:
 		#	print "Is instance aslept?"
 			
@@ -113,7 +138,6 @@ class MyServiceNow:
  		request_url = '%s/api/now/table/%s/%s' % (self.url, table, sysid)
 		# Add extra query requests if specified
 		if query != '':
-			request_url = '%s?sysparm_query=%s' % (request_url, query)
+			request_url = '%s?%s' % (request_url, query)
+		#print request_url
 		return request_url
-
-#def query:
